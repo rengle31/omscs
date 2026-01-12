@@ -12,19 +12,21 @@ today = datetime.datetime.now().replace(microsecond=0)
 file_path = f"dataframe.pkl"
 
 if not os.path.isfile(file_path):
-    print(f"The file {file_path} DNE - no pickle - ERROR.")
-    quit()
+    st.markdown(f"## OMSCS Course Occupancy")
+    st.markdown(f"#### ERROR: Data unavailable. Try again later.")
+    quit() #TODO will eventually reinit data pull and pickle
+
+
+# TODO Add condition to update if data is stale
+
 else:
     with open(file_path, 'rb') as f:
         pickle_df = pickle.load(f)
-    print(f"loaded {file_path}")
 
     m_timestamp = os.path.getmtime(file_path)
     dataframe_date = datetime.datetime.fromtimestamp(m_timestamp).replace(microsecond=0)
 
     data_age = today-dataframe_date
-
-    print(f"data age: {data_age}")
 
 df = pickle_df[['Title', 'Course Number', 'Section', 'CRN', 'Status']]
 df = df.loc[df['Section'].str.startswith('O') & df['Section'].str[1].str.isdigit()] #== 'O01']
@@ -59,8 +61,8 @@ left, middle, right = st.columns([1, 8, 1])
 
 with middle:
     st.markdown(f"## OMSCS Course Occupancy")
-    st.markdown(f"Data Age: {data_age}, \tData Timestamp: {dataframe_date}utc")
-    search_term = st.text_input("Enter search term (keyword or exact course number, acronyms not yet supported):")
+    st.text(f"Data Age: {data_age}, Data Timestamp: {dataframe_date} UTC")
+    search_term = st.text_input("**Search** (keywords OR exact course number, acronyms not yet supported, '|', '&' operators OK)")
     if search_term:
         if search_term.isdigit(): df = df[df['Course Number'] == (search_term)]
         else: df = df[df['Title'].str.contains(search_term, case=False, na=False)]
