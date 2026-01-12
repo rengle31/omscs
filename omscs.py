@@ -63,42 +63,21 @@ st.set_page_config(layout="wide")
 st.markdown("""
         <style>
                .block-container {
-                    padding-top: 1rem;
-                    padding-bottom: 0rem;
-                    padding-left: 5rem;
-                    padding-right: 5rem;
+                    padding-top: 3rem;
                 }
-        </style>
-        """, unsafe_allow_html=True)
+                .right-align-container {
+                text-align: right;
+                }
+            </style>""", unsafe_allow_html=True)
 
 left, middle, right = st.columns([1, 8, 1])
 
 with middle:
-    st.markdown(
-    """
-    <style>
-    /* The main app container has a bit of padding by default, adjust as needed */
-    .stApp {
-        padding-top: 0rem; 
-    }
-
-    /* Custom CSS for the top-right container */
-    .top-right-container {
-        position: absolute;
-        top: 0px;
-        right: 0px;
-        padding: 20px;
-        border-radius: 5px;
-        z-index: 1000;
-    }
-    </style>
-    """, unsafe_allow_html=True
-)   
-    st.markdown("""<div class="top-right-container"><a href='https://ko-fi.com/Y8Y51S5314' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="right-align-container"><a href='https://ko-fi.com/Y8Y51S5314' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></div>""", unsafe_allow_html=True)
     
     #<div class="top-right-container">
     
-    st.markdown(f"######\n## OMSCS Course Occupancy")
+    st.markdown(f"## OMSCS Course Occupancy")
     st.text(f"Data Age: {data_age}, Data Timestamp: {dataframe_date} UTC")
     search_term = st.text_input("**Search** (keywords OR exact course number, acronyms not yet supported, | & operators OK)")
     if search_term:
