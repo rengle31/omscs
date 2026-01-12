@@ -60,6 +60,17 @@ col = df.pop('Status')
 df.insert(0, 'Status', col)
 
 st.set_page_config(layout="wide")
+st.markdown("""
+        <style>
+               .block-container {
+                    padding-top: 1rem;
+                    padding-bottom: 0rem;
+                    padding-left: 5rem;
+                    padding-right: 5rem;
+                }
+        </style>
+        """, unsafe_allow_html=True)
+
 left, middle, right = st.columns([1, 8, 1])
 
 with middle:
@@ -82,9 +93,12 @@ with middle:
     }
     </style>
     """, unsafe_allow_html=True
-)
+)   
     st.markdown("""<div class="top-right-container"><a href='https://ko-fi.com/Y8Y51S5314' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></div>""", unsafe_allow_html=True)
-    st.markdown(f"## OMSCS Course Occupancy")
+    
+    #<div class="top-right-container">
+    
+    st.markdown(f"######\n## OMSCS Course Occupancy")
     st.text(f"Data Age: {data_age}, Data Timestamp: {dataframe_date} UTC")
     search_term = st.text_input("**Search** (keywords OR exact course number, acronyms not yet supported, | & operators OK)")
     if search_term:
