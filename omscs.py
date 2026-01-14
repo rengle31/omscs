@@ -6,21 +6,53 @@ import datetime
 import os.path
 import numpy as np
 import streamlit as st
+import glob
 
 
+def find_newest_file(directory_path, prefix, extension):
+    """
+    Finds the newest file in a directory that matches a specific prefix and extension.
 
+    Args:
+        directory_path (str): The path to the directory to search.
+        prefix (str): The prefix of the filename (e.g., 'log_').
+        extension (str): The file extension (e.g., '.txt').
 
+    Returns:
+        str or None: The path to the newest file, or None if no file is found.
+    """
+    # Create the search pattern using wildcards
+    pattern = os.path.join(directory_path, f"{prefix}*{extension}")
+    
+    # Get a list of all files matching the pattern
+    # glob.glob returns full paths if the directory_path is included in the pattern
+    list_of_files = glob.glob(pattern)
+    
+    # Filter out directories, ensuring only files are considered
+    files_only = [f for f in list_of_files if os.path.isfile(f)]
+
+    if not files_only:
+        return None  # Return None if no files are found
+
+    # Find the file with the maximum modification time (os.path.getmtime)
+    latest_file = max(files_only, key=os.path.getmtime)
+    
+    return latest_file
+
+directory = "./pickles" # Replace with your directory path
+file_prefix = "dataframe" # Replace with your prefix
+file_extension = ".pkl" # Replace with your file extension
+
+file_path = find_newest_file(directory, file_prefix, file_extension)
+print(file_path)
 
 today = datetime.datetime.now().replace(microsecond=0)
-file_path = f"dataframe.pkl"
+# file_path = f"dataframe.pkl"
 
 if not os.path.isfile(file_path):
     st.markdown(f"## OMSCS Course Occupancy")
     st.markdown(f"#### ERROR: Data unavailable. Try again later.")
-    quit() #TODO will eventually reinit data pull and pickle
-
-
-# TODO Add condition to update if data is stale
+    quit() 
 
 else:
     with open(file_path, 'rb') as f:

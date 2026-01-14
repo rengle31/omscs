@@ -16,4 +16,5 @@ dependencies = [
     "selenium>=4.39.0",
     "streamlit>=1.52.2",
     "tabloo>=0.1.0",
+    "glob>=0.0.0"
 ]
