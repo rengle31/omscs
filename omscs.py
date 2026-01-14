@@ -81,8 +81,8 @@ df.sort_values(by='Seats Left', ascending=False, inplace=True)
 df.drop_duplicates(ignore_index=True, inplace=True)
 
 conditions = [
-    (df['% Fill Rate'] >= 100),
-    (df['% Fill Rate'] >= 75) & (df['% Fill Rate'] < 100),
+    (df['Seats Left'] <= 0),
+    (df['% Fill Rate'] >= 75) & (df['Seats Left'] > 0),
     (df['% Fill Rate'] < 75)
 ]
 choices = ["🔴", "🟠", "🟢"]
