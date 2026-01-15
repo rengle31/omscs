@@ -1,0 +1,14 @@
+# Ignore everything
+*
+
+# Un-ignore specific files and directories
+!dataframe*
+!README.md
+!uv.lock
+!pyproject.toml
+!omscs.py
+!test
+!.gitignore
+
+# Un-ignore all files inside the src folder (necessary for Git to track contents)
+!*/
