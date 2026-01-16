@@ -2,7 +2,7 @@
 *
 
 # Un-ignore specific files and directories
-!dataframe*
+!dataframe.pkl
 !README.md
 !uv.lock
 !pyproject.toml
