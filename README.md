@@ -1,1 +1,1 @@
-Helping omscs students register since today.
+Helping omscs students register since today. Inspired by omscs.rocks who helped me register for courses throughout omscs up until thier API broke. Hope this helps others as they helped me.
