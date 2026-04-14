@@ -1,132 +1,220 @@
-
-import pickle   
-import pandas as pd
-import re
 import datetime
-import os.path
+import html
+import json
+import re
+import urllib.request
+
 import numpy as np
+import pandas as pd
 import streamlit as st
-import glob
+
+TERM_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/data/202605.json"
+COURSES_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/static/courses.json"
+
+EXCLUDED_TITLE_PATTERNS = (
+    "doctoral thesis",
+    "special problems",
+    "master's thesis",
+    "masters thesis",
+)
 
 
-def find_newest_file(directory_path, prefix, extension):
-    """
-    Finds the newest file in a directory that matches a specific prefix and extension.
+def _is_excluded(title: str) -> bool:
+    t = (title or "").lower()
+    return any(p in t for p in EXCLUDED_TITLE_PATTERNS)
 
-    Args:
-        directory_path (str): The path to the directory to search.
-        prefix (str): The prefix of the filename (e.g., 'log_').
-        extension (str): The file extension (e.g., '.txt').
 
-    Returns:
-        str or None: The path to the newest file, or None if no file is found.
-    """
-    # Create the search pattern using wildcards
-    pattern = os.path.join(directory_path, f"{prefix}*{extension}")
-    
-    # Get a list of all files matching the pattern
-    # glob.glob returns full paths if the directory_path is included in the pattern
-    list_of_files = glob.glob(pattern)
-    
-    # Filter out directories, ensuring only files are considered
-    files_only = [f for f in list_of_files if os.path.isfile(f)]
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_json(url: str):
+    req = urllib.request.Request(url, headers={"User-Agent": "omscs-occupancy/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
-    if not files_only:
-        return None  # Return None if no files are found
 
-    # Find the file with the maximum modification time (os.path.getmtime)
-    latest_file = max(files_only, key=os.path.getmtime)
-    
-    return latest_file
+@st.cache_data(ttl=300, show_spinner="Loading latest course data…")
+def load_data():
+    term_data = fetch_json(TERM_URL)
+    courses_meta = fetch_json(COURSES_URL)
 
-directory = "./pickles" # Replace with your directory path
-file_prefix = "dataframe" # Replace with your prefix
-file_extension = ".pkl" # Replace with your file extension
+    alias_map = {
+        cid: ", ".join(meta.get("aliases") or []) for cid, meta in courses_meta.items()
+    }
+    full_name_map = {cid: meta.get("name", "") for cid, meta in courses_meta.items()}
 
-file_path = find_newest_file(directory, file_prefix, file_extension)
-print(file_path)
+    rows = []
+    for course_id, course in term_data.get("courses", {}).items():
+        for section in course.get("sections", []):
+            section_num = section.get("sectionNumber", "") or ""
+            if not (len(section_num) >= 2 and section_num[0] == "O" and section_num[1].isdigit()):
+                continue
 
-today = datetime.datetime.now().replace(microsecond=0)
-# file_path = f"dataframe.pkl"
+            title = html.unescape(full_name_map.get(course_id) or course.get("name", ""))
+            if _is_excluded(title):
+                continue
 
-if not os.path.isfile(file_path):
-    st.markdown(f"## OMSCS Course Occupancy")
-    st.markdown(f"#### ERROR: Data unavailable. Try again later.")
-    quit() 
+            capacity = section.get("capacity") or 0
+            enrolled = section.get("enrolled") or 0
+            seats_available = section.get("seatsAvailable")
+            if seats_available is None:
+                seats_available = max(capacity - enrolled, 0)
+            wait_count = section.get("waitCount") or 0
+            wait_capacity = section.get("waitCapacity") or 0
+            wait_left = max(wait_capacity - wait_count, 0)
+            fill_rate = (
+                int(round(100 * (enrolled + wait_count) / capacity)) if capacity else 0
+            )
 
-else:
-    with open(file_path, 'rb') as f:
-        pickle_df = pickle.load(f)
+            rows.append(
+                {
+                    "Title": title,
+                    "Aliases": alias_map.get(course_id, ""),
+                    "Course Number": course.get("courseNumber", ""),
+                    "Section": section_num,
+                    "CRN": section.get("crn", ""),
+                    "Instructor": section.get("instructor", "") or "",
+                    "Seats Total": capacity,
+                    "Seats Taken": enrolled,
+                    "WL Taken": wait_count,
+                    "WL Left": wait_left,
+                    "Seats Left": seats_available,
+                    "% Fill Rate": fill_rate,
+                }
+            )
 
-    m_timestamp = os.path.getmtime(file_path)
-    dataframe_date = datetime.datetime.fromtimestamp(m_timestamp).replace(microsecond=0)
+    df = pd.DataFrame(rows)
 
-    data_age = today-dataframe_date
+    last_updated_raw = term_data.get("lastUpdated")
+    data_timestamp = None
+    if last_updated_raw:
+        try:
+            data_timestamp = datetime.datetime.fromisoformat(
+                last_updated_raw.replace("Z", "+00:00")
+            )
+        except ValueError:
+            data_timestamp = None
 
-df = pickle_df[['Title', 'Course Number', 'Section', 'CRN', 'Status']]
-df = df.loc[df['Section'].str.startswith('O') & df['Section'].str[1].str.isdigit()] #== 'O01']
-pd.set_option('display.max_colwidth', None)
-def parse_integers(text):
-    found = re.findall(r'\d+', str(text))
-    ints = [int(x) for x in found]
-    p = (ints + [0, 0, 0, 0])[:4]
-    p[-1] = p[3] - p[-2]
-    padded = [p[1], p[1]-p[0], p[3], p[2], 0, 0]
-    padded[-2] = padded[0] - padded[1] - padded[2]
-    padded[-1] = int(round(100 * (padded[1]+padded[2]) / padded[0]))
-    return padded
-df[['Seats Total', 'Seats Taken', 'WL Taken', 'WL Left', 'Seats Left', '% Fill Rate']] = pd.DataFrame(df['Status'].apply(parse_integers).tolist(), index=df.index)
-df = df.drop(['Status'], axis=1)
-df.sort_values(by='Seats Left', ascending=False, inplace=True)
-df.drop_duplicates(ignore_index=True, inplace=True)
+    return df, data_timestamp, term_data.get("termName", "")
 
-conditions = [
-    (df['Seats Left'] <= 0),
-    (df['% Fill Rate'] >= 75) & (df['Seats Left'] > 0),
-    (df['% Fill Rate'] < 75)
-]
-choices = ["🔴", "🟠", "🟢"]
-df['Status'] = np.select(conditions, choices, default='')
 
-col = df.pop('Status')
-df.insert(0, 'Status', col)
+def apply_status(df: pd.DataFrame) -> pd.DataFrame:
+    conditions = [
+        df["Seats Left"] <= 0,
+        (df["% Fill Rate"] >= 75) & (df["Seats Left"] > 0),
+        df["% Fill Rate"] < 75,
+    ]
+    choices = ["🔴", "🟠", "🟢"]
+    df.insert(0, "Status", np.select(conditions, choices, default=""))
+    return df
 
-st.set_page_config(layout="wide")
-st.markdown("""
+
+def _term_mask(df: pd.DataFrame, term: str) -> pd.Series:
+    term = term.strip()
+    if not term:
+        return pd.Series(True, index=df.index)
+
+    esc = re.escape(term)
+    alias_pattern = rf"(?:^|,\s*){esc}(?:\s*,|$)"
+    word_pattern = rf"\b{esc}\b"
+
+    return (
+        df["Title"].str.contains(esc, case=False, na=False, regex=True)
+        | df["Aliases"].str.contains(alias_pattern, case=False, na=False, regex=True)
+        | df["Course Number"].astype(str).str.contains(esc, case=False, na=False, regex=True)
+        | df["Instructor"].str.contains(word_pattern, case=False, na=False, regex=True)
+        | df["CRN"].astype(str).str.contains(esc, case=False, na=False, regex=True)
+    )
+
+
+def search_df(df: pd.DataFrame, query: str) -> pd.DataFrame:
+    query = (query or "").strip()
+    if not query:
+        return df
+
+    or_mask = pd.Series(False, index=df.index)
+    for clause in query.split("|"):
+        and_terms = [t for t in (p.strip() for p in clause.split("&")) if t]
+        if not and_terms:
+            continue
+        and_mask = pd.Series(True, index=df.index)
+        for term in and_terms:
+            and_mask &= _term_mask(df, term)
+        or_mask |= and_mask
+    return df[or_mask]
+
+
+def main():
+    st.set_page_config(layout="wide", page_title="OMSCS Course Occupancy")
+    st.markdown(
+        """
         <style>
-               .block-container {
-                    padding-top: 3rem;
-                }
-                .right-align-container {
-                text-align: right;
-                }
-            </style>""", unsafe_allow_html=True)
+            .block-container { padding-top: 3rem; }
+            .right-align-container { text-align: right; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-left, middle, right = st.columns([1, 8, 1])
+    left, middle, right = st.columns([1, 8, 1])
 
-with middle:
-    st.markdown("""<div class="right-align-container"><a href='https://ko-fi.com/Y8Y51S5314' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></div>""", unsafe_allow_html=True)
-    
-    #<div class="top-right-container">
-    
-    st.markdown(f"## OMSCS Course Occupancy")
-    st.text(f"Data Age: {data_age}, Data Timestamp: {dataframe_date} UTC")
-    search_term = st.text_input("**Search** (keywords OR exact course number, acronyms not yet supported, | & operators OK)")
-    if search_term:
-        if search_term.isdigit(): df = df[df['Course Number'] == (search_term)]
-        else: df = df[df['Title'].str.contains(search_term, case=False, na=False)]
-
-    st.dataframe(df, height="content", width="stretch", hide_index=True, column_config={
-        "% Fill Rate": st.column_config.ProgressColumn(
-            "% Fill Rate",
-            min_value=0,
-            max_value=100,
-            color="blue"
+    with middle:
+        st.markdown(
+            """<div class="right-align-container"><a href='https://ko-fi.com/Y8Y51S5314' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a></div>""",
+            unsafe_allow_html=True,
         )
-    })
+
+        try:
+            df, data_timestamp, term_name = load_data()
+        except Exception as exc:
+            st.markdown("## OMSCS Course Occupancy")
+            st.error(f"Data unavailable: {exc}. Try again later.")
+            return
+
+        header = "OMSCS Course Occupancy"
+        if term_name:
+            header += f" — {term_name}"
+        st.markdown(f"## {header}")
+
+        if data_timestamp is not None:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            age = now - data_timestamp
+            age = datetime.timedelta(seconds=max(int(age.total_seconds()), 0))
+            st.text(
+                f"Data Age: {age}, Data Timestamp: "
+                f"{data_timestamp.astimezone(datetime.timezone.utc):%Y-%m-%d %H:%M:%S} UTC"
+            )
+
+        if df.empty:
+            st.warning("No online sections found in the source data.")
+            return
+
+        df = apply_status(df)
+        df.sort_values(by="Seats Left", ascending=False, inplace=True, ignore_index=True)
+
+        search_term = st.text_input(
+            "**Search** — course number, title keywords, alias (e.g. `NLP`), instructor, or CRN. "
+            "Combine with `&` (AND) and `|` (OR), e.g. `ML | NLP`, `reinforcement & learning`."
+        )
+        filtered = search_df(df, search_term)
+
+        st.caption(f"Showing {len(filtered):,} of {len(df):,} sections")
+
+        st.dataframe(
+            filtered,
+            height="content",
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "Instructor": None,
+                "% Fill Rate": st.column_config.ProgressColumn(
+                    "% Fill Rate",
+                    min_value=0,
+                    max_value=100,
+                    format="%d%%",
+                    color="blue",
+                ),
+            },
+        )
 
 
-    
-
-
-
+if __name__ == "__main__":
+    main()
