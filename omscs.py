@@ -98,8 +98,8 @@ def load_data():
 
 def apply_status(df: pd.DataFrame) -> pd.DataFrame:
     conditions = [
-        (df["Seats Left"]) <= 0 | (df["WL Taken"] > df["Seats Left"]),
-        (df["% Fill Rate"] >= 75) & (df["Seats Left"] > 0),
+        df["% Fill Rate"]) >= 100, # (df["Seats Left"]) <= 0 | (df["WL Taken"] > df["Seats Left"]),
+        (df["% Fill Rate"] >= 75) & (df["% Fill Rate"] < 100),
         df["% Fill Rate"] < 75,
     ]
     choices = ["🔴", "🟠", "🟢"]
