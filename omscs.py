@@ -190,7 +190,6 @@ def main():
             return
 
         df = apply_status(df)
-        df.sort_values(by="Seats Left", ascending=False, inplace=True, ignore_index=True)
 
         st.markdown(
             '<div style="font-size:14px;margin-bottom:0.25rem;">'
@@ -223,6 +222,8 @@ def main():
             height=0,
         )
         filtered = search_df(df, search_term)
+        sort_col = "% Fill Rate" if search_term.strip() == "DM|gai|DL|gios|law|iis|6601|kbai|CN" else "Seats Left"
+        filtered = filtered.sort_values(by=sort_col, ascending=False, ignore_index=True)
 
         st.caption(f"Showing {len(filtered):,} of {len(df):,} sections")
 
