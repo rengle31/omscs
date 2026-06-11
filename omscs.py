@@ -7,6 +7,7 @@ import urllib.request
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 TERM_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/data/202608.json"
 COURSES_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/static/courses.json"
@@ -149,6 +150,7 @@ def main():
         <style>
             .block-container { padding-top: 3rem; }
             .right-align-container { text-align: right; }
+            #ee, #ee:visited { color: inherit !important; text-decoration: none !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -190,9 +192,35 @@ def main():
         df = apply_status(df)
         df.sort_values(by="Seats Left", ascending=False, inplace=True, ignore_index=True)
 
-        search_term = st.text_input(
-            "**Search** — course number, title keywords, alias (e.g. `NLP`), instructor, or CRN. "
-            "Combine with `&` (AND) and `|` (OR), e.g. `ML | NLP`, `reinforcement & learning`."
+        st.markdown(
+            '<div style="font-size:14px;margin-bottom:0.25rem;">'
+            "<strong>Search</strong> — course number, title keywords, alias (e.g. <code>NLP</code>), instructor, or CRN. "
+            "Combine with <code>&amp;</code> (AND) and <code>|</code> (OR), e.g. <code>ML | NLP</code>, "
+            '<code>reinforcement &amp; <a id="ee" href="#" style="color:inherit;text-decoration:none;">learning</a></code>.'
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        search_term = st.text_input("search", key="search_input", label_visibility="collapsed")
+        components.html(
+            """<script>
+(function(){
+  function go(){
+    var a=window.parent.document.getElementById('ee');
+    if(!a||a.dataset.bound)return;
+    a.dataset.bound='1';
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var inp=window.parent.document.querySelector('input[type=text]');
+      if(!inp)return;
+      var sv=Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype,'value').set;
+      sv.call(inp,'DM|gai|DL|gios|law|iis|6601|kbai|CN');
+      inp.dispatchEvent(new Event('input',{bubbles:true}));
+    });
+  }
+  setTimeout(go,100);setTimeout(go,500);
+})();
+</script>""",
+            height=0,
         )
         filtered = search_df(df, search_term)
 
