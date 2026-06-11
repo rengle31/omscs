@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-TERM_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/data/202605.json"
+TERM_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/data/202608.json"
 COURSES_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/static/courses.json"
 
 EXCLUDED_TITLE_PATTERNS = (
