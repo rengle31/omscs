@@ -9,8 +9,16 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-TERM_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/data/202608.json"
+LEARNING_SEARCH = "DM|ALGO|GAI|DL|GIOS|LAW|IIS|6601|CGAI|AIES|COGSCI|CN|GPU"
+TERM_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/data/202702.json"
 COURSES_URL = "https://raw.githubusercontent.com/omshub/data/refs/heads/main/static/courses.json"
+
+# Extra aliases merged on top of omshub's courses.json, keyed by course ID.
+# Use for courses omshub has no (or an incomplete) alias list for.
+LOCAL_ALIASES = {
+    "CS-8803-O27": ["CGAI"],  # Computer Graphics in the AI Era
+    "CS-6795": ["COGSCI"],  # Introduction to Cognitive Science
+}
 
 EXCLUDED_TITLE_PATTERNS = (
     "doctoral thesis",
@@ -37,9 +45,11 @@ def load_data():
     term_data = fetch_json(TERM_URL)
     courses_meta = fetch_json(COURSES_URL)
 
-    alias_map = {
-        cid: ", ".join(meta.get("aliases") or []) for cid, meta in courses_meta.items()
-    }
+    alias_lists = {cid: list(meta.get("aliases") or []) for cid, meta in courses_meta.items()}
+    for cid, extra in LOCAL_ALIASES.items():
+        existing = alias_lists.setdefault(cid, [])
+        existing += [a for a in extra if a.lower() not in {e.lower() for e in existing}]
+    alias_map = {cid: ", ".join(aliases) for cid, aliases in alias_lists.items()}
     full_name_map = {cid: meta.get("name", "") for cid, meta in courses_meta.items()}
 
     rows = []
@@ -212,17 +222,17 @@ def main():
       var inp=window.parent.document.querySelector('input[type=text]');
       if(!inp)return;
       var sv=Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype,'value').set;
-      sv.call(inp,'DM|gai|DL|gios|law|iis|6601|kbai|CN');
+      sv.call(inp,'__LEARNING__');
       inp.dispatchEvent(new Event('input',{bubbles:true}));
     });
   }
   setTimeout(go,100);setTimeout(go,500);
 })();
-</script>""",
+</script>""".replace("__LEARNING__", LEARNING_SEARCH),
             height=0,
         )
         filtered = search_df(df, search_term)
-        sort_col = "% Fill Rate" if search_term.strip() == "DM|gai|DL|gios|law|iis|6601|kbai|CN" else "Seats Left"
+        sort_col = "% Fill Rate" if search_term.strip() == LEARNING_SEARCH else "Seats Left"
         filtered = filtered.sort_values(by=sort_col, ascending=False, ignore_index=True)
 
         st.caption(f"Showing {len(filtered):,} of {len(df):,} sections")
