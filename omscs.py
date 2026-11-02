@@ -223,7 +223,14 @@ def main():
       if(!inp)return;
       var sv=Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype,'value').set;
       sv.call(inp,'__LEARNING__');
+      inp.focus();
       inp.dispatchEvent(new Event('input',{bubbles:true}));
+      // Streamlit only commits text_input on Enter/blur; let React register the
+      // new value, then press Enter (and blur as a fallback) to run the search.
+      setTimeout(function(){
+        inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));
+        inp.blur();
+      },50);
     });
   }
   setTimeout(go,100);setTimeout(go,500);
